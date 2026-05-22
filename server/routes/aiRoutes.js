@@ -9,9 +9,9 @@ import { protect, admin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get('/insights', protect, admin, getInsightsList);
-router.post('/generate', protect, admin, generateStoreInsights);
+router.get('/insights', protect, getInsightsList);
+router.post('/generate', protect, generateStoreInsights);
 router.post('/product/generate', protect, generateProductCopy);
-router.post('/sales-suggestions', protect, admin, getSalesSuggestions);
+router.post('/sales-suggestions', protect, getSalesSuggestions);
 
 export default router;
