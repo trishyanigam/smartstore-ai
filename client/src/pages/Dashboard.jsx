@@ -86,6 +86,25 @@ const Dashboard = () => {
   const [copiedTags, setCopiedTags] = useState(false);
   const [copiedCaption, setCopiedCaption] = useState(false);
 
+  // --- AI BUSINESS INSIGHTS STATES ---
+  const [salesSuggestions, setSalesSuggestions] = useState(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState('');
+
+  const fetchSalesSuggestions = async () => {
+    try {
+      setSuggestionsLoading(true);
+      setSuggestionsError('');
+      const { data } = await API.post('/ai/sales-suggestions', {});
+      setSalesSuggestions(data);
+    } catch (err) {
+      console.error('Error fetching sales suggestions:', err);
+      setSuggestionsError(err.response?.data?.message || 'Failed to fetch AI sales suggestions.');
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
   // Fetch Dashboard data (stats & AI insights)
   const fetchDashboardData = async () => {
     try {
@@ -125,6 +144,7 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
     fetchProducts();
+    fetchSalesSuggestions();
   }, []);
 
   // Request new AI recommendations
@@ -605,6 +625,20 @@ const Dashboard = () => {
               </svg>
               <span>AI Tools</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('ai-insights')}
+              className={`w-full flex items-center gap-3 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
+                activeTab === 'ai-insights'
+                  ? 'bg-purple-600/10 border border-purple-500/25 text-purple-300 shadow-md shadow-purple-500/5'
+                  : 'border border-transparent hover:bg-slate-900/60 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <span>AI Insights</span>
+            </button>
           </nav>
         </div>
 
@@ -679,6 +713,14 @@ const Dashboard = () => {
                 >
                   AI Tools
                 </button>
+                <button
+                  onClick={() => { setActiveTab('ai-insights'); setSidebarOpen(false); }}
+                  className={`w-full text-left py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === 'ai-insights' ? 'bg-purple-600/10 text-purple-300' : 'text-slate-400'
+                  }`}
+                >
+                  AI Insights
+                </button>
               </nav>
             </div>
 
@@ -740,11 +782,15 @@ const Dashboard = () => {
                 {activeTab === 'ai-tools' && (
                   <>AI Copywriting <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">Workstation</span></>
                 )}
+                {activeTab === 'ai-insights' && (
+                  <>AI Business <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">Insights</span></>
+                )}
               </h1>
               <p className="text-slate-400 text-sm mt-1">
                 {activeTab === 'overview' && 'Here is the real-time AI analytics snapshot for your ecommerce catalog.'}
                 {activeTab === 'products' && 'Add, update, search and manage items in your product inventory.'}
                 {activeTab === 'ai-tools' && 'Generate search-optimized metadata, descriptions, and captions for your catalog in seconds.'}
+                {activeTab === 'ai-insights' && 'Intelligent pricing recommendations, trending product trajectories, and real-time replenishment targets.'}
               </p>
             </div>
 
@@ -779,6 +825,28 @@ const Dashboard = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
                 <span>Add Product</span>
+              </button>
+            )}
+
+            {activeTab === 'ai-insights' && (
+              <button
+                onClick={fetchSalesSuggestions}
+                disabled={suggestionsLoading}
+                className="flex items-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-500/10 active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              >
+                {suggestionsLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    <span>Refreshed AI Insights...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" />
+                    </svg>
+                    <span>Refresh Insights</span>
+                  </>
+                )}
               </button>
             )}
 
@@ -1494,6 +1562,322 @@ const Dashboard = () => {
 
               </div>
 
+            </div>
+          )}
+
+          {/* --- TAB VIEW: AI BUSINESS INSIGHTS --- */}
+          {activeTab === 'ai-insights' && (
+            <div className="space-y-8 animate-fadeIn">
+              {suggestionsLoading ? (
+                // Shimmer loading skeletons
+                <div className="space-y-8">
+                  {/* KPI Skeletons */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-28 bg-slate-900/20 border border-slate-900 rounded-2xl animate-pulse flex flex-col justify-center px-6">
+                        <div className="h-4 bg-slate-800 rounded w-1/3 mb-3"></div>
+                        <div className="h-8 bg-slate-800 rounded w-1/2"></div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Body Content Skeletons */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="h-8 bg-slate-800 rounded w-1/4 mb-4"></div>
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-44 bg-slate-900/20 border border-slate-900 rounded-2xl animate-pulse p-6">
+                          <div className="flex justify-between items-center mb-4">
+                            <div className="h-5 bg-slate-800 rounded w-1/3"></div>
+                            <div className="h-6 bg-slate-800 rounded w-16"></div>
+                          </div>
+                          <div className="h-4 bg-slate-800 rounded w-1/4 mb-4"></div>
+                          <div className="h-16 bg-slate-800 rounded w-full"></div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-8">
+                      <div>
+                        <div className="h-8 bg-slate-800 rounded w-1/2 mb-4"></div>
+                        <div className="h-60 bg-slate-900/20 border border-slate-900 rounded-2xl animate-pulse"></div>
+                      </div>
+                      <div>
+                        <div className="h-8 bg-slate-800 rounded w-1/2 mb-4"></div>
+                        <div className="h-60 bg-slate-900/20 border border-slate-900 rounded-2xl animate-pulse"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : suggestionsError ? (
+                // Error boundary block
+                <div className="p-8 bg-rose-500/5 border border-rose-500/10 rounded-2xl flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-4 shadow-xl">
+                  <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-400 border border-rose-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-md font-bold text-slate-200">Failed to load AI Suggestions</h3>
+                    <p className="text-xs text-slate-500 mt-1 max-w-xs">{suggestionsError}</p>
+                  </div>
+                  <button
+                    onClick={fetchSalesSuggestions}
+                    className="py-2 px-4 rounded-xl text-xs font-semibold bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all duration-300 text-rose-400 cursor-pointer"
+                  >
+                    Retry Fetching
+                  </button>
+                </div>
+              ) : salesSuggestions ? (
+                // Core recommendations UI
+                <div className="space-y-8">
+                  
+                  {/* General KPIs Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Opportunities */}
+                    <div className="bg-slate-900/35 border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300 flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Pricing Tweaks</span>
+                        <h4 className="text-2xl font-black text-slate-100 mt-0.5">
+                          {salesSuggestions.pricingRecommendations?.length || 0} <span className="text-xs font-semibold text-slate-400">Products</span>
+                        </h4>
+                      </div>
+                    </div>
+
+                    {/* Department Highlights */}
+                    <div className="bg-slate-900/35 border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300 flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Growth Vectors</span>
+                        <h4 className="text-2xl font-black text-slate-100 mt-0.5">
+                          {salesSuggestions.trendingProductInsights?.length || 0} <span className="text-xs font-semibold text-slate-400">Categories</span>
+                        </h4>
+                      </div>
+                    </div>
+
+                    {/* Low Stock Alerts */}
+                    <div className="bg-slate-900/35 border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300 flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                        salesSuggestions.lowStockAlerts?.length > 0
+                          ? 'bg-rose-500/10 border border-rose-500/20 text-rose-400 animate-pulse'
+                          : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+                      }`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Restock Warnings</span>
+                        <h4 className="text-2xl font-black text-slate-100 mt-0.5">
+                          {salesSuggestions.lowStockAlerts?.length || 0} <span className="text-xs font-semibold text-slate-400">Triggered</span>
+                        </h4>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Core Columns Section */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    
+                    {/* 1. Pricing Optimizer Recommendations (2 Columns Wide) */}
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-100">Pricing Strategy Optimizer</h3>
+                      </div>
+
+                      <div className="space-y-4">
+                        {salesSuggestions.pricingRecommendations && salesSuggestions.pricingRecommendations.length > 0 ? (
+                          salesSuggestions.pricingRecommendations.map((item, idx) => {
+                            const actionLabels = {
+                              'Increase price': { style: 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300', label: 'Raise Price' },
+                              'Discount price': { style: 'bg-amber-500/10 border-amber-500/20 text-amber-300', label: 'Offer Promo' },
+                              'Bundle discount': { style: 'bg-teal-500/10 border-teal-500/20 text-teal-300', label: 'Bundle Item' },
+                              'No change': { style: 'bg-slate-800/40 border-slate-700 text-slate-400', label: 'Optimal Price' }
+                            };
+                            const design = actionLabels[item.action] || actionLabels['No change'];
+
+                            return (
+                              <div key={idx} className="bg-slate-900/40 border border-slate-900/85 rounded-2xl p-6 relative overflow-hidden group hover:border-purple-500/20 transition-all duration-300">
+                                <div className="absolute top-[-30px] right-[-30px] w-20 h-20 bg-indigo-500/5 rounded-full blur-xl pointer-events-none"></div>
+                                
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                                  <h4 className="text-sm font-bold text-slate-200">{item.productTitle}</h4>
+                                  <span className={`inline-flex py-1 px-3 rounded-full text-[10px] font-bold uppercase border tracking-wider shrink-0 w-fit ${design.style}`}>
+                                    {design.label}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-baseline gap-2 mb-3">
+                                  <span className="text-xs text-slate-500">Suggested Adjustment:</span>
+                                  {item.action === 'No change' ? (
+                                    <span className="text-sm font-bold text-slate-300">${item.currentPrice}</span>
+                                  ) : (
+                                    <>
+                                      <span className="text-xs text-slate-500 line-through">${item.currentPrice}</span>
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-slate-500 self-center" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                      </svg>
+                                      <span className="text-sm font-bold text-emerald-400">${item.recommendedPrice}</span>
+                                    </>
+                                  )}
+                                </div>
+
+                                <div className="p-3 bg-slate-950/40 border border-slate-950/80 rounded-xl text-xs text-slate-400 leading-relaxed italic relative">
+                                  <span className="text-purple-500 font-extrabold text-sm absolute top-1 left-2 opacity-30">“</span>
+                                  <p className="pl-3.5 pr-2">
+                                    {item.rationale}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="bg-slate-900/20 border border-slate-900 rounded-2xl p-8 text-center text-slate-500 text-xs italic">
+                            No pricing recommendations compiled for active inventory list.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 2. Side Panel (Trending & Stocks Alert) */}
+                    <div className="space-y-8">
+                      
+                      {/* Trending Highlights */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-xl bg-pink-500/10 text-pink-400 border border-pink-500/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                          </div>
+                          <h3 className="text-md font-bold text-slate-100">Category Sales Trajectory</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                          {salesSuggestions.trendingProductInsights && salesSuggestions.trendingProductInsights.length > 0 ? (
+                            salesSuggestions.trendingProductInsights.map((item, idx) => (
+                              <div key={idx} className="bg-slate-900/40 border border-slate-900/85 rounded-2xl p-6 relative overflow-hidden group hover:border-pink-500/20 transition-all duration-300">
+                                <div className="absolute top-[-30px] right-[-30px] w-16 h-16 bg-pink-500/5 rounded-full blur-xl pointer-events-none"></div>
+                                
+                                <span className="inline-flex py-0.5 px-2.5 rounded-full text-[10px] font-bold bg-pink-500/10 border border-pink-500/20 text-pink-300 uppercase mb-3">
+                                  {item.category}
+                                </span>
+
+                                <p className="text-xs text-slate-300 leading-relaxed font-semibold mb-4">
+                                  {item.insight}
+                                </p>
+
+                                <div className="space-y-2 border-t border-slate-800/60 pt-3">
+                                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">Strategic Next Steps</span>
+                                  {item.recommendedActions.map((action, aIdx) => (
+                                    <div key={aIdx} className="flex items-start gap-2 text-xs text-slate-400">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-pink-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      <span>{action}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="bg-slate-900/20 border border-slate-900 rounded-2xl p-6 text-center text-slate-500 text-xs italic">
+                              No department trend insights available.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Stock Warnings */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-md font-bold text-slate-100">Smart Stock alerts</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                          {salesSuggestions.lowStockAlerts && salesSuggestions.lowStockAlerts.length > 0 ? (
+                            salesSuggestions.lowStockAlerts.map((item, idx) => {
+                              const isCritical = item.daysToOutofStock < 15;
+                              const barColor = isCritical ? 'from-rose-500 to-red-500' : 'from-amber-500 to-yellow-500';
+                              const percentage = Math.max(5, Math.min(100, (item.daysToOutofStock / 30) * 100));
+
+                              return (
+                                <div key={idx} className="bg-slate-900/40 border border-slate-900/85 rounded-2xl p-6 relative overflow-hidden group hover:border-rose-500/25 transition-all duration-300">
+                                  <div className="absolute top-[-30px] right-[-30px] w-16 h-16 bg-rose-500/5 rounded-full blur-xl pointer-events-none"></div>
+
+                                  <div className="flex items-center justify-between gap-3 mb-2">
+                                    <h4 className="text-xs font-bold text-slate-200">{item.productTitle}</h4>
+                                    <span className={`py-0.5 px-2 rounded text-[9px] font-extrabold uppercase tracking-wide border shrink-0 ${
+                                      isCritical
+                                        ? 'bg-rose-500/15 border-rose-500/30 text-rose-300'
+                                        : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                                    }`}>
+                                      {isCritical ? 'Critical Stock' : 'Restock Pending'}
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400 mb-3 border-b border-slate-800/40 pb-2">
+                                    <div>Current Stock: <span className="text-slate-200 font-bold">{item.currentStock} units</span></div>
+                                    <div className="text-right">Sales Velocity: <span className="text-slate-200 font-bold">{item.salesVelocity}</span></div>
+                                  </div>
+
+                                  <div className="space-y-1.5 mb-4">
+                                    <div className="flex justify-between items-center text-[10px]">
+                                      <span className="text-slate-500 uppercase tracking-wider font-semibold">Depletion Timeline</span>
+                                      <span className={isCritical ? 'text-rose-400 font-bold' : 'text-amber-400 font-bold'}>
+                                        ~{item.daysToOutofStock} days remaining
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
+                                      <div className={`h-full bg-gradient-to-r ${barColor} rounded-full`} style={{ width: `${percentage}%` }}></div>
+                                    </div>
+                                  </div>
+
+                                  <div className="p-2.5 bg-rose-500/5 border border-rose-500/10 rounded-xl flex items-center gap-2 text-[11px] text-rose-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                    <span>{item.restockRecommendation}</span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="bg-slate-900/20 border border-slate-900 rounded-2xl p-6 text-center text-slate-500 text-xs italic">
+                              No urgent low inventory warnings recorded.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              ) : (
+                <div className="p-8 bg-slate-900/20 border border-slate-900 rounded-2xl text-center text-slate-500 text-sm">
+                  Click "Refresh Insights" to request store analytics metrics and generate smart recommendations.
+                </div>
+              )}
             </div>
           )}
 
