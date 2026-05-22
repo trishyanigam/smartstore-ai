@@ -4,6 +4,13 @@ SmartStore AI is a premium, modern e-commerce administration platform designed t
 
 ---
 
+## 🌐 Live Production Links
+
+* **Live Frontend UI (Vercel)**: [https://smartstore-ai-rust.vercel.app/](https://smartstore-ai-rust.vercel.app/)
+* **Live Backend API (Render)**: [https://smartstore-backend-ubai.onrender.com/](https://smartstore-backend-ubai.onrender.com/)
+
+---
+
 ## 🎯 Project Objective
 
 Build a centralized assistant where store owners can manage products while a background AI analyst generates descriptive copies, automates search metadata, and delivers actionable sales trajectory insights.
