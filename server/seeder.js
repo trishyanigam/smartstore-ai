@@ -22,7 +22,7 @@ const importData = async () => {
     console.log('Database cleared.');
 
     // 1. Create Users (Pre-save in User model handles hashing, but we can also pass plain text here)
-    const users = await User.insertMany([
+    const users = await User.create([
       {
         name: 'Admin User',
         email: 'admin@smartstore.com',

@@ -6,7 +6,7 @@ const Dashboard = () => {
   const { user, logout } = useAuth();
   
   // Dashboard & Navigation states
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'products'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', or 'ai-tools'
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState(null);
   const [insights, setInsights] = useState([]);
@@ -25,7 +25,7 @@ const Dashboard = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  // Form Fields
+  // Product CRUD Form Fields
   const [formTitle, setFormTitle] = useState('');
   const [formPrice, setFormPrice] = useState('');
   const [formCategory, setFormCategory] = useState('General');
@@ -34,6 +34,25 @@ const Dashboard = () => {
   const [formSales, setFormSales] = useState('0');
   const [formError, setFormError] = useState('');
   const [formSubmitting, setFormSubmitting] = useState(false);
+
+  // --- AI COPYWRITING TOOLS STATES ---
+  const [aiTitle, setAiTitle] = useState('');
+  const [aiCategory, setAiCategory] = useState('General');
+  const [aiFeatures, setAiFeatures] = useState('');
+  const [aiDescription, setAiDescription] = useState('');
+  const [aiSeoTags, setAiSeoTags] = useState([]);
+  const [aiCaption, setAiCaption] = useState('');
+
+  // Loading states for copywriter
+  const [loadingDesc, setLoadingDesc] = useState(false);
+  const [loadingTags, setLoadingTags] = useState(false);
+  const [loadingCaption, setLoadingCaption] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
+
+  // Copied alert states
+  const [copiedDesc, setCopiedDesc] = useState(false);
+  const [copiedTags, setCopiedTags] = useState(false);
+  const [copiedCaption, setCopiedCaption] = useState(false);
 
   // Fetch Dashboard data (stats & AI insights)
   const fetchDashboardData = async () => {
@@ -133,7 +152,6 @@ const Dashboard = () => {
         sales: parseInt(formSales || '0'),
       });
       setShowAddModal(false);
-      // Refresh both product list and dashboard stats to update cards/charts
       await Promise.all([fetchProducts(), fetchDashboardData()]);
     } catch (err) {
       setFormError(err.response?.data?.message || 'Failed to create product.');
@@ -163,7 +181,6 @@ const Dashboard = () => {
         sales: parseInt(formSales || '0'),
       });
       setShowEditModal(false);
-      // Refresh both product list and dashboard stats
       await Promise.all([fetchProducts(), fetchDashboardData()]);
     } catch (err) {
       setFormError(err.response?.data?.message || 'Failed to update product.');
@@ -181,6 +198,68 @@ const Dashboard = () => {
       } catch (err) {
         alert(err.response?.data?.message || 'Failed to delete product.');
       }
+    }
+  };
+
+  // --- AI Tools: Generate Product Copywriting Assets ---
+  const handleGenerateAsset = async (target) => {
+    if (!aiTitle.trim()) {
+      alert('Please enter a Product Title first.');
+      return;
+    }
+    if (!aiCategory) {
+      alert('Please select a Product Category.');
+      return;
+    }
+
+    // Set active loading states
+    if (target === 'description') setLoadingDesc(true);
+    if (target === 'seoTags') setLoadingTags(true);
+    if (target === 'marketingCaption') setLoadingCaption(true);
+    if (target === 'all') setLoadingAll(true);
+
+    try {
+      const featuresArray = aiFeatures
+        ? aiFeatures.split(',').map(f => f.trim()).filter(f => f.length > 0)
+        : [];
+
+      const { data } = await API.post('/ai/product/generate', {
+        title: aiTitle,
+        category: aiCategory,
+        features: featuresArray,
+      });
+
+      // Populate results conditionally
+      if (target === 'description' || target === 'all') setAiDescription(data.description || '');
+      if (target === 'seoTags' || target === 'all') setAiSeoTags(data.seoTags || []);
+      if (target === 'marketingCaption' || target === 'all') setAiCaption(data.marketingCaption || '');
+    } catch (err) {
+      console.error('AI Generation error:', err);
+      alert(err.response?.data?.message || 'Failed to generate assets. Please try again.');
+    } finally {
+      if (target === 'description') setLoadingDesc(false);
+      if (target === 'seoTags') setLoadingTags(false);
+      if (target === 'marketingCaption') setLoadingCaption(false);
+      if (target === 'all') setLoadingAll(false);
+    }
+  };
+
+  // Copy to clipboard with success state
+  const handleCopyToClipboard = (text, type) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    
+    if (type === 'description') {
+      setCopiedDesc(true);
+      setTimeout(() => setCopiedDesc(false), 2000);
+    }
+    if (type === 'seoTags') {
+      setCopiedTags(true);
+      setTimeout(() => setCopiedTags(false), 2000);
+    }
+    if (type === 'marketingCaption') {
+      setCopiedCaption(true);
+      setTimeout(() => setCopiedCaption(false), 2000);
     }
   };
 
@@ -231,6 +310,7 @@ const Dashboard = () => {
               </svg>
               <span>Overview</span>
             </button>
+            
             <button
               onClick={() => setActiveTab('products')}
               className={`w-full flex items-center gap-3 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
@@ -243,6 +323,20 @@ const Dashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
               <span>Products</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('ai-tools')}
+              className={`w-full flex items-center gap-3 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
+                activeTab === 'ai-tools'
+                  ? 'bg-purple-600/10 border border-purple-500/25 text-purple-300 shadow-md shadow-purple-500/5'
+                  : 'border border-transparent hover:bg-slate-900/60 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+              </svg>
+              <span>AI Tools</span>
             </button>
           </nav>
         </div>
@@ -296,23 +390,27 @@ const Dashboard = () => {
               <nav className="space-y-1.5">
                 <button
                   onClick={() => { setActiveTab('overview'); setSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
-                    activeTab === 'overview'
-                      ? 'bg-purple-600/10 border border-purple-500/25 text-purple-300 shadow-md'
-                      : 'border border-transparent hover:bg-slate-900/60 text-slate-400'
+                  className={`w-full text-left py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === 'overview' ? 'bg-purple-600/10 text-purple-300' : 'text-slate-400'
                   }`}
                 >
                   Overview
                 </button>
                 <button
                   onClick={() => { setActiveTab('products'); setSidebarOpen(false); }}
-                  className={`w-full flex items-center gap-3 py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 cursor-pointer ${
-                    activeTab === 'products'
-                      ? 'bg-purple-600/10 border border-purple-500/25 text-purple-300 shadow-md'
-                      : 'border border-transparent hover:bg-slate-900/60 text-slate-400'
+                  className={`w-full text-left py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === 'products' ? 'bg-purple-600/10 text-purple-300' : 'text-slate-400'
                   }`}
                 >
                   Products
+                </button>
+                <button
+                  onClick={() => { setActiveTab('ai-tools'); setSidebarOpen(false); }}
+                  className={`w-full text-left py-3 px-4 rounded-xl text-sm font-semibold transition-all ${
+                    activeTab === 'ai-tools' ? 'bg-purple-600/10 text-purple-300' : 'text-slate-400'
+                  }`}
+                >
+                  AI Tools
                 </button>
               </nav>
             </div>
@@ -366,16 +464,20 @@ const Dashboard = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-100">
-                {activeTab === 'overview' ? (
+                {activeTab === 'overview' && (
                   <>Welcome back, <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">{user?.name.split(' ')[0]}</span>!</>
-                ) : (
+                )}
+                {activeTab === 'products' && (
                   <>Product <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">Catalog</span></>
+                )}
+                {activeTab === 'ai-tools' && (
+                  <>AI Copywriting <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">Workstation</span></>
                 )}
               </h1>
               <p className="text-slate-400 text-sm mt-1">
-                {activeTab === 'overview' 
-                  ? 'Here is the real-time AI analytics snapshot for your ecommerce catalog.' 
-                  : 'Add, update, search and manage items in your product inventory.'}
+                {activeTab === 'overview' && 'Here is the real-time AI analytics snapshot for your ecommerce catalog.'}
+                {activeTab === 'products' && 'Add, update, search and manage items in your product inventory.'}
+                {activeTab === 'ai-tools' && 'Generate search-optimized metadata, descriptions, and captions for your catalog in seconds.'}
               </p>
             </div>
 
@@ -410,6 +512,28 @@ const Dashboard = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
                 <span>Add Product</span>
+              </button>
+            )}
+
+            {activeTab === 'ai-tools' && (
+              <button
+                onClick={() => handleGenerateAsset('all')}
+                disabled={loadingAll || loadingDesc || loadingTags || loadingCaption || !aiTitle.trim()}
+                className="flex items-center gap-2 py-3 px-5 rounded-xl text-sm font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg shadow-purple-500/10 active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              >
+                {loadingAll ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                    <span>Writing Copywriting Pack...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>Generate All Assets</span>
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -832,6 +956,255 @@ const Dashboard = () => {
                     <p className="text-slate-500 text-sm mt-1">Try refining your search keyword or selecting a different category.</p>
                   </div>
                 )}
+              </div>
+
+            </div>
+          )}
+
+          {/* --- TAB VIEW: AI COPYWRITING TOOLS --- */}
+          {activeTab === 'ai-tools' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              
+              {/* Product Info Workstation (Inputs) */}
+              <div className="lg:col-span-1 bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 h-fit space-y-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-100">Product Specs</h3>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Title */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Product Title *</label>
+                    <input
+                      type="text"
+                      value={aiTitle}
+                      onChange={(e) => setAiTitle(e.target.value)}
+                      placeholder="e.g. Premium Noise-Cancelling Headphones"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-all"
+                    />
+                  </div>
+
+                  {/* Category */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Category *</label>
+                    <select
+                      value={aiCategory}
+                      onChange={(e) => setAiCategory(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-4 text-sm text-slate-300 focus:outline-none focus:border-purple-500 transition-all cursor-pointer"
+                    >
+                      {categories.map((cat, idx) => (
+                        <option key={idx} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Features */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Key Features (comma-separated)</label>
+                    <textarea
+                      rows="4"
+                      value={aiFeatures}
+                      onChange={(e) => setAiFeatures(e.target.value)}
+                      placeholder="e.g. 40h battery, Active Noise Cancellation, wireless bluetooth, travel case"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-4 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-purple-500 transition-all resize-none"
+                    ></textarea>
+                    <p className="text-[10px] text-slate-500 mt-1">Separate key features by commas to guide the copywriting tone.</p>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* AI Output Generation Panels (Cards) */}
+              <div className="lg:col-span-2 space-y-6">
+                
+                {/* 1. Description Card */}
+                <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300">
+                  <div className="absolute top-[-50px] right-[-50px] w-28 h-28 bg-purple-500/5 rounded-full blur-2xl pointer-events-none"></div>
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div>
+                      <h4 className="text-md font-bold text-slate-200 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                        High-Converting Product Description
+                      </h4>
+                      <p className="text-xs text-slate-500">Beautiful descriptive copy ready to paste into your catalog.</p>
+                    </div>
+
+                    <div className="flex gap-2 shrink-0">
+                      {aiDescription && (
+                        <button
+                          onClick={() => handleCopyToClipboard(aiDescription, 'description')}
+                          className={`py-1.5 px-3.5 rounded-lg text-xs font-semibold border transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${
+                            copiedDesc
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                              : 'border-slate-800 bg-slate-900/40 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-300 text-slate-400'
+                          }`}
+                        >
+                          {copiedDesc ? (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                              </svg>
+                              <span>Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                              </svg>
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleGenerateAsset('description')}
+                        disabled={loadingDesc || loadingAll || !aiTitle.trim()}
+                        className="py-1.5 px-3.5 rounded-lg text-xs font-semibold bg-purple-600/15 border border-purple-500/25 hover:bg-purple-600 text-purple-300 hover:text-white transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        {loadingDesc ? 'Writing Description...' : 'Generate Description'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Body Text */}
+                  <div className="bg-slate-950/50 border border-slate-950 rounded-xl p-4 min-h-[120px] max-h-[220px] overflow-y-auto relative flex items-center justify-center">
+                    {loadingDesc ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-3 border-purple-500/10 border-t-purple-500 rounded-full animate-spin"></div>
+                        <span className="text-xs text-slate-500 font-medium">Generating engaging copywriting description...</span>
+                      </div>
+                    ) : aiDescription ? (
+                      <div className="text-slate-300 text-xs leading-relaxed whitespace-pre-line text-left w-full">
+                        {aiDescription}
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 text-xs italic text-center">Fill in specs and click Generate above to draft the copywriting.</span>
+                    )}
+                  </div>
+
+                </div>
+
+                {/* 2. SEO Tags Card */}
+                <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300">
+                  <div className="absolute top-[-50px] right-[-50px] w-28 h-28 bg-blue-500/5 rounded-full blur-2xl pointer-events-none"></div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div>
+                      <h4 className="text-md font-bold text-slate-200 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                        Search-Optimized SEO Keywords
+                      </h4>
+                      <p className="text-xs text-slate-500">Optimized meta tags to increase organic discoverability.</p>
+                    </div>
+
+                    <div className="flex gap-2 shrink-0">
+                      {aiSeoTags.length > 0 && (
+                        <button
+                          onClick={() => handleCopyToClipboard(aiSeoTags.join(', '), 'seoTags')}
+                          className={`py-1.5 px-3.5 rounded-lg text-xs font-semibold border transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${
+                            copiedTags
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                              : 'border-slate-800 bg-slate-900/40 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-300 text-slate-400'
+                          }`}
+                        >
+                          {copiedTags ? 'Copied!' : 'Copy Tags'}
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleGenerateAsset('seoTags')}
+                        disabled={loadingTags || loadingAll || !aiTitle.trim()}
+                        className="py-1.5 px-3.5 rounded-lg text-xs font-semibold bg-purple-600/15 border border-purple-500/25 hover:bg-purple-600 text-purple-300 hover:text-white transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        {loadingTags ? 'Optimizing Tags...' : 'Generate SEO Tags'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Body Tags */}
+                  <div className="bg-slate-950/50 border border-slate-950 rounded-xl p-4 min-h-[80px] flex items-center justify-center">
+                    {loadingTags ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-3 border-purple-500/10 border-t-purple-500 rounded-full animate-spin"></div>
+                        <span className="text-xs text-slate-500 font-medium">Analysing keyword algorithms...</span>
+                      </div>
+                    ) : aiSeoTags.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 justify-start w-full">
+                        {aiSeoTags.map((tag, tIdx) => (
+                          <span key={tIdx} className="inline-flex py-1 px-3 rounded-xl text-xs font-semibold bg-blue-950/60 border border-blue-900/40 text-blue-300">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 text-xs italic">Generate tags to view keyword tags.</span>
+                    )}
+                  </div>
+
+                </div>
+
+                {/* 3. Marketing Caption Card */}
+                <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300">
+                  <div className="absolute top-[-50px] right-[-50px] w-28 h-28 bg-pink-500/5 rounded-full blur-2xl pointer-events-none"></div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div>
+                      <h4 className="text-md font-bold text-slate-200 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-pink-500"></span>
+                        Social Promo & Marketing Caption
+                      </h4>
+                      <p className="text-xs text-slate-500">Catchy social media captions complete with modern hashtags.</p>
+                    </div>
+
+                    <div className="flex gap-2 shrink-0">
+                      {aiCaption && (
+                        <button
+                          onClick={() => handleCopyToClipboard(aiCaption, 'marketingCaption')}
+                          className={`py-1.5 px-3.5 rounded-lg text-xs font-semibold border transition-all duration-300 flex items-center gap-1.5 cursor-pointer ${
+                            copiedCaption
+                              ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                              : 'border-slate-800 bg-slate-900/40 hover:bg-purple-500/10 hover:border-purple-500/20 hover:text-purple-300 text-slate-400'
+                          }`}
+                        >
+                          {copiedCaption ? 'Copied!' : 'Copy Caption'}
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleGenerateAsset('marketingCaption')}
+                        disabled={loadingCaption || loadingAll || !aiTitle.trim()}
+                        className="py-1.5 px-3.5 rounded-lg text-xs font-semibold bg-purple-600/15 border border-purple-500/25 hover:bg-purple-600 text-purple-300 hover:text-white transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        {loadingCaption ? 'Drafting Caption...' : 'Generate Caption'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Body Caption */}
+                  <div className="bg-slate-950/50 border border-slate-950 rounded-xl p-4 min-h-[90px] flex items-center justify-center">
+                    {loadingCaption ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-3 border-purple-500/10 border-t-purple-500 rounded-full animate-spin"></div>
+                        <span className="text-xs text-slate-500 font-medium">Composing creative marketing caption...</span>
+                      </div>
+                    ) : aiCaption ? (
+                      <div className="text-slate-300 text-xs leading-relaxed text-left w-full whitespace-pre-wrap">
+                        {aiCaption}
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 text-xs italic">Generate marketing caption to view copy.</span>
+                    )}
+                  </div>
+
+                </div>
+
               </div>
 
             </div>
