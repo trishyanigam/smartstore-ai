@@ -7,10 +7,10 @@ export const getProducts = async (req, res, next) => {
   try {
     const keyword = req.query.keyword
       ? {
-          name: {
-            $regex: req.query.keyword,
-            $options: 'i',
-          },
+          $or: [
+            { title: { $regex: req.query.keyword, $options: 'i' } },
+            { name: { $regex: req.query.keyword, $options: 'i' } },
+          ],
         }
       : {};
 
@@ -43,16 +43,19 @@ export const getProductById = async (req, res, next) => {
 // @route   POST /api/products
 // @access  Private/Admin
 export const createProduct = async (req, res, next) => {
-  const { name, price, description, imageUrl, category, stockCount, sentimentScore, demandForecast, aiKeywords } = req.body;
+  const { title, name, price, description, imageUrl, category, stock, stockCount, sales, sentimentScore, demandForecast, aiKeywords } = req.body;
 
   try {
     const product = new Product({
-      name: name || 'Sample Product',
-      price: price || 0,
+      title: title || name || 'Sample Product',
+      name: name || title || 'Sample Product',
+      price: price !== undefined ? price : 0.0,
       description: description || 'Sample Description',
       imageUrl: imageUrl || 'https://via.placeholder.com/150',
       category: category || 'General',
-      stockCount: stockCount || 0,
+      stock: stock !== undefined ? stock : (stockCount !== undefined ? stockCount : 0),
+      stockCount: stockCount !== undefined ? stockCount : (stock !== undefined ? stock : 0),
+      sales: sales !== undefined ? sales : 0,
       sentimentScore: sentimentScore || 4.0,
       demandForecast: demandForecast || 'Stable',
       aiKeywords: aiKeywords || [],
@@ -69,18 +72,21 @@ export const createProduct = async (req, res, next) => {
 // @route   PUT /api/products/:id
 // @access  Private/Admin
 export const updateProduct = async (req, res, next) => {
-  const { name, price, description, imageUrl, category, stockCount, sentimentScore, demandForecast, aiKeywords } = req.body;
+  const { title, name, price, description, imageUrl, category, stock, stockCount, sales, sentimentScore, demandForecast, aiKeywords } = req.body;
 
   try {
     const product = await Product.findById(req.params.id);
 
     if (product) {
-      product.name = name || product.name;
+      product.title = title || name || product.title;
+      product.name = name || title || product.name;
       product.price = price !== undefined ? price : product.price;
       product.description = description || product.description;
       product.imageUrl = imageUrl || product.imageUrl;
       product.category = category || product.category;
-      product.stockCount = stockCount !== undefined ? stockCount : product.stockCount;
+      product.stock = stock !== undefined ? stock : (stockCount !== undefined ? stockCount : product.stock);
+      product.stockCount = stockCount !== undefined ? stockCount : (stock !== undefined ? stock : product.stockCount);
+      product.sales = sales !== undefined ? sales : product.sales;
       product.sentimentScore = sentimentScore !== undefined ? sentimentScore : product.sentimentScore;
       product.demandForecast = demandForecast || product.demandForecast;
       product.aiKeywords = aiKeywords || product.aiKeywords;

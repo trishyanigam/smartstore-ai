@@ -4,7 +4,11 @@ const productSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Please add a product name'],
+      trim: true,
+    },
+    title: {
+      type: String,
+      required: [true, 'Please add a product title'],
       trim: true,
     },
     description: {
@@ -20,9 +24,17 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please add a product category'],
     },
-    stockCount: {
+    stock: {
       type: Number,
       required: [true, 'Please add product stock count'],
+      default: 0,
+    },
+    stockCount: {
+      type: Number,
+      default: 0,
+    },
+    sales: {
+      type: Number,
       default: 0,
     },
     imageUrl: {
@@ -48,6 +60,21 @@ const productSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Pre-validate hook to automatically sync name/title and stockCount/stock for backward compatibility
+productSchema.pre('validate', function () {
+  if (this.title && !this.name) {
+    this.name = this.title;
+  } else if (this.name && !this.title) {
+    this.title = this.name;
+  }
+
+  if (this.stock !== undefined && (this.stockCount === undefined || this.stockCount === 0)) {
+    this.stockCount = this.stock;
+  } else if (this.stockCount !== undefined && (this.stock === undefined || this.stock === 0)) {
+    this.stock = this.stockCount;
+  }
+});
 
 const Product = mongoose.model('Product', productSchema);
 
