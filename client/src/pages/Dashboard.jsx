@@ -1,6 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+
+// Register Chart.js modules
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -13,6 +41,10 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [error, setError] = useState('');
+  
+  // Advanced Sales Analytics States
+  const [salesAnalytics, setSalesAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
   // Products CRUD states
   const [products, setProducts] = useState([]);
@@ -58,18 +90,22 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setAnalyticsLoading(true);
       setError('');
-      const [statsRes, insightsRes] = await Promise.all([
+      const [statsRes, insightsRes, analyticsRes] = await Promise.all([
         API.get('/dashboard/stats'),
-        API.get('/ai/insights')
+        API.get('/ai/insights'),
+        API.get('/analytics/sales')
       ]);
       setStats(statsRes.data);
       setInsights(insightsRes.data);
+      setSalesAnalytics(analyticsRes.data);
     } catch (err) {
       console.error('Error fetching dashboard details:', err);
       setError(err.response?.data?.message || 'Failed to sync with analytics database.');
     } finally {
       setLoading(false);
+      setAnalyticsLoading(false);
     }
   };
 
@@ -97,8 +133,12 @@ const Dashboard = () => {
       setAiGenerating(true);
       const { data } = await API.post('/ai/generate');
       setInsights(data);
-      const statsRes = await API.get('/dashboard/stats');
+      const [statsRes, analyticsRes] = await Promise.all([
+        API.get('/dashboard/stats'),
+        API.get('/analytics/sales')
+      ]);
       setStats(statsRes.data);
+      setSalesAnalytics(analyticsRes.data);
     } catch (err) {
       console.error('AI compilation failed:', err);
       alert('AI Generation Failed: ' + (err.response?.data?.message || err.message));
@@ -271,6 +311,233 @@ const Dashboard = () => {
   });
 
   const categories = ['Electronics', 'Office', 'Home & Living', 'Accessories', 'General'];
+
+  // --- CHART CONFIGURATIONS FOR SALES ANALYTICS ---
+  
+  // 1. Line Chart Options & Data: Monthly Revenue Trends
+  const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        titleColor: '#f8fafc',
+        bodyColor: '#f1f5f9',
+        borderColor: 'rgba(168, 85, 247, 0.35)',
+        borderWidth: 1,
+        padding: 12,
+        boxPadding: 6,
+        usePointStyle: true,
+        callbacks: {
+          label: function (context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+            }
+            return label;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: '#94a3b8',
+          font: {
+            family: 'Inter, sans-serif',
+            size: 11,
+            weight: '600',
+          }
+        }
+      },
+      y: {
+        grid: {
+          color: 'rgba(51, 65, 85, 0.15)',
+        },
+        ticks: {
+          color: '#94a3b8',
+          font: {
+            family: 'Inter, sans-serif',
+            size: 11,
+          },
+          callback: function (value) {
+            return '$' + value.toLocaleString();
+          }
+        }
+      }
+    }
+  };
+
+  const lineChartData = {
+    labels: salesAnalytics?.monthlyRevenue?.map(m => m.month) || [],
+    datasets: [
+      {
+        label: 'Monthly Revenue',
+        data: salesAnalytics?.monthlyRevenue?.map(m => m.revenue) || [],
+        fill: true,
+        borderColor: 'rgb(168, 85, 247)', // Neon Purple
+        backgroundColor: 'rgba(168, 85, 247, 0.08)',
+        borderWidth: 3,
+        tension: 0.38,
+        pointBackgroundColor: 'rgb(236, 72, 153)', // Neon Pink Accent
+        pointBorderColor: '#0f172a',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 7,
+        pointHoverBackgroundColor: 'rgb(168, 85, 247)',
+        pointHoverBorderColor: '#ffffff',
+        pointHoverBorderWidth: 2,
+      }
+    ]
+  };
+
+  // 2. Bar Chart Options & Data: Top Selling Products
+  const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        titleColor: '#f8fafc',
+        bodyColor: '#f1f5f9',
+        borderColor: 'rgba(236, 72, 153, 0.35)',
+        borderWidth: 1,
+        padding: 12,
+        callbacks: {
+          label: function (context) {
+            const index = context.dataIndex;
+            const product = salesAnalytics?.topSellingProducts?.[index];
+            if (product) {
+              return [
+                `Units Sold: ${product.totalQtySold} units`,
+                `Revenue: $${product.totalRevenueGenerated.toLocaleString()}`
+              ];
+            }
+            return `Units Sold: ${context.parsed.y}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: '#94a3b8',
+          font: {
+            family: 'Inter, sans-serif',
+            size: 10,
+            weight: '500',
+          }
+        }
+      },
+      y: {
+        grid: {
+          color: 'rgba(51, 65, 85, 0.15)',
+        },
+        ticks: {
+          color: '#94a3b8',
+          font: {
+            family: 'Inter, sans-serif',
+            size: 11,
+          },
+          precision: 0,
+        }
+      }
+    }
+  };
+
+  const barChartData = {
+    labels: salesAnalytics?.topSellingProducts?.map(p => {
+      const name = p.title || p.name || '';
+      return name.length > 15 ? name.substring(0, 15) + '...' : name;
+    }) || [],
+    datasets: [
+      {
+        label: 'Units Sold',
+        data: salesAnalytics?.topSellingProducts?.map(p => p.totalQtySold) || [],
+        backgroundColor: 'rgba(236, 72, 153, 0.75)', // Neon Pink
+        borderColor: 'rgb(236, 72, 153)',
+        borderWidth: 1.5,
+        borderRadius: 6,
+        borderSkipped: false,
+        hoverBackgroundColor: 'rgba(236, 72, 153, 0.95)',
+      }
+    ]
+  };
+
+  // 3. Doughnut Chart Options & Data: Category Revenue Breakdown
+  const doughnutChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: {
+          color: '#cbd5e1',
+          padding: 15,
+          font: {
+            family: 'Inter, sans-serif',
+            size: 11,
+            weight: '500',
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+        titleColor: '#f8fafc',
+        bodyColor: '#f1f5f9',
+        borderColor: 'rgba(168, 85, 247, 0.35)',
+        borderWidth: 1,
+        padding: 12,
+        callbacks: {
+          label: function (context) {
+            const index = context.dataIndex;
+            const cat = salesAnalytics?.salesByCategory?.[index];
+            const totalVal = context.parsed;
+            const formattedVal = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(totalVal);
+            if (cat) {
+              return ` ${cat.category}: ${formattedVal} (${cat.totalUnitsSold} units)`;
+            }
+            return ` ${context.label}: ${formattedVal}`;
+          }
+        }
+      }
+    },
+    cutout: '65%',
+  };
+
+  const doughnutChartData = {
+    labels: salesAnalytics?.salesByCategory?.map(c => c.category) || [],
+    datasets: [
+      {
+        data: salesAnalytics?.salesByCategory?.map(c => c.totalRevenue) || [],
+        backgroundColor: [
+          'rgba(168, 85, 247, 0.7)', // Indigo/Purple
+          'rgba(236, 72, 153, 0.7)', // Hot Pink
+          'rgba(59, 130, 246, 0.7)',  // Bright Blue
+          'rgba(16, 185, 129, 0.7)',  // Emerald Green
+          'rgba(245, 158, 11, 0.7)',  // Golden Amber
+        ],
+        borderColor: '#0f172a',
+        borderWidth: 2,
+        hoverOffset: 6,
+      }
+    ]
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex relative overflow-hidden">
@@ -567,19 +834,19 @@ const Dashboard = () => {
                   {/* KPI CARDS */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     
-                    {/* Revenue */}
-                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300">
+                    {/* Revenue Card */}
+                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-purple-500/35 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)] transition-all duration-300">
                       <div className="absolute top-[-50px] right-[-50px] w-28 h-28 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-all"></div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="text-slate-400 font-semibold tracking-wide text-xs uppercase">Total Sales Revenue</span>
-                        <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400">
+                        <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
                       </div>
-                      <h3 className="text-3xl font-extrabold text-slate-100">
-                        ${stats?.kpis?.totalRevenue !== undefined ? stats.kpis.totalRevenue.toLocaleString() : '0'}
+                      <h3 className="text-3xl font-extrabold text-slate-100 tracking-tight">
+                        ${salesAnalytics?.revenueKpis?.totalRevenue !== undefined ? salesAnalytics.revenueKpis.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                       </h3>
                       <p className="text-emerald-400 text-xs font-semibold mt-2 flex items-center gap-1">
                         <span>↑ 18.2%</span>
@@ -587,19 +854,19 @@ const Dashboard = () => {
                       </p>
                     </div>
 
-                    {/* Orders */}
-                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300">
+                    {/* Orders Card */}
+                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-pink-500/35 hover:shadow-[0_0_20px_rgba(236,72,153,0.15)] transition-all duration-300">
                       <div className="absolute top-[-50px] right-[-50px] w-28 h-28 bg-pink-500/5 rounded-full blur-2xl group-hover:bg-pink-500/10 transition-all"></div>
                       <div className="flex justify-between items-start mb-4">
-                        <span className="text-slate-400 font-semibold tracking-wide text-xs uppercase">Total Orders</span>
-                        <div className="p-2 rounded-xl bg-pink-500/10 text-pink-400">
+                        <span className="text-slate-400 font-semibold tracking-wide text-xs uppercase">Total Paid Orders</span>
+                        <div className="p-2 rounded-xl bg-pink-500/10 text-pink-400 border border-pink-500/20">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                           </svg>
                         </div>
                       </div>
-                      <h3 className="text-3xl font-extrabold text-slate-100">
-                        {stats?.kpis?.totalOrders !== undefined ? stats.kpis.totalOrders : '0'}
+                      <h3 className="text-3xl font-extrabold text-slate-100 tracking-tight">
+                        {salesAnalytics?.revenueKpis?.totalOrders !== undefined ? salesAnalytics.revenueKpis.totalOrders.toLocaleString() : '0'}
                       </h3>
                       <p className="text-emerald-400 text-xs font-semibold mt-2 flex items-center gap-1">
                         <span>↑ 12.5%</span>
@@ -607,41 +874,41 @@ const Dashboard = () => {
                       </p>
                     </div>
 
-                    {/* Products */}
-                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300">
+                    {/* Average Order Value Card */}
+                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-blue-500/35 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all duration-300">
                       <div className="absolute top-[-50px] right-[-50px] w-28 h-28 bg-blue-500/5 rounded-full blur-2xl group-hover:bg-blue-500/10 transition-all"></div>
                       <div className="flex justify-between items-start mb-4">
-                        <span className="text-slate-400 font-semibold tracking-wide text-xs uppercase">Catalog Products</span>
-                        <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
+                        <span className="text-slate-400 font-semibold tracking-wide text-xs uppercase">Average Order Value</span>
+                        <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      </div>
+                      <h3 className="text-3xl font-extrabold text-slate-100 tracking-tight">
+                        ${salesAnalytics?.revenueKpis?.averageOrderValue !== undefined ? salesAnalytics.revenueKpis.averageOrderValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                      </h3>
+                      <p className="text-slate-500 text-xs font-medium mt-2">
+                        Avg basket checkout size
+                      </p>
+                    </div>
+
+                    {/* Total Units Sold Card */}
+                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-emerald-500/35 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300">
+                      <div className="absolute top-[-50px] right-[-50px] w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-all"></div>
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="text-slate-400 font-semibold tracking-wide text-xs uppercase">Total Units Sold</span>
+                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                           </svg>
                         </div>
                       </div>
-                      <h3 className="text-3xl font-extrabold text-slate-100">
-                        {stats?.kpis?.totalProducts !== undefined ? stats.kpis.totalProducts : '0'}
+                      <h3 className="text-3xl font-extrabold text-slate-100 tracking-tight">
+                        {salesAnalytics?.totalItemsSold !== undefined ? salesAnalytics.totalItemsSold.toLocaleString() : '0'}
                       </h3>
                       <p className="text-slate-500 text-xs font-medium mt-2">
-                        Categorized in <span className="text-slate-300 font-semibold">{stats?.categoryBreakdown?.length || 0} departments</span>
-                      </p>
-                    </div>
-
-                    {/* Customers */}
-                    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 relative overflow-hidden group hover:border-slate-800 transition-all duration-300">
-                      <div className="absolute top-[-50px] right-[-50px] w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-all"></div>
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="text-slate-400 font-semibold tracking-wide text-xs uppercase">Active Customers</span>
-                        <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                          </svg>
-                        </div>
-                      </div>
-                      <h3 className="text-3xl font-extrabold text-slate-100">
-                        {stats?.kpis?.totalCustomers !== undefined ? stats.kpis.totalCustomers : '0'}
-                      </h3>
-                      <p className="text-slate-500 text-xs font-medium mt-2">
-                        Registered shoppers
+                        Items cleared from inventory
                       </p>
                     </div>
 
@@ -653,40 +920,60 @@ const Dashboard = () => {
                     {/* Charts & Stocks */}
                     <div className="lg:col-span-2 space-y-8">
                       
-                      {/* Sales trends bar chart */}
-                      <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6">
+                      {/* 1. Monthly Revenue Trend Line Chart */}
+                      <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 hover:border-slate-800/80 transition-all duration-300">
                         <h3 className="text-lg font-bold tracking-tight text-slate-100 mb-6 flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-                          Monthly Sales Trend (USD)
+                          Monthly Revenue Trend (USD)
                         </h3>
+                        <div className="h-80 relative">
+                          {salesAnalytics?.monthlyRevenue && salesAnalytics.monthlyRevenue.length > 0 ? (
+                            <Line data={lineChartData} options={lineChartOptions} />
+                          ) : (
+                            <div className="h-full flex items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
+                              <p className="text-slate-500 text-sm">Waiting for transaction inputs to plot charts...</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 2. Secondary Charts Grid (Bar & Doughnut) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         
-                        {stats?.monthlySales && stats.monthlySales.length > 0 ? (
-                          <div className="h-64 flex items-end justify-between gap-4 pt-4 border-b border-slate-800 pb-2 px-4">
-                            {stats.monthlySales.map((salesItem, index) => {
-                              const maxRevenue = Math.max(...stats.monthlySales.map(s => s.revenue), 1);
-                              const percentHeight = Math.round((salesItem.revenue / maxRevenue) * 100);
-                              return (
-                                <div key={index} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                                  {/* Bar Tooltip */}
-                                  <div className="absolute top-[-35px] bg-slate-900 border border-slate-800 rounded-lg py-1 px-2.5 text-xs text-purple-300 font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-xl pointer-events-none z-10 whitespace-nowrap">
-                                    ${salesItem.revenue.toLocaleString()}
-                                  </div>
-                                  <div
-                                    style={{ height: `${percentHeight}%` }}
-                                    className="w-full min-h-[15px] bg-gradient-to-t from-purple-600/70 to-pink-600/90 hover:from-purple-500 hover:to-pink-500 rounded-t-lg transition-all duration-500 shadow-lg shadow-purple-500/10 group-hover:scale-x-105"
-                                  ></div>
-                                  <span className="text-xs text-slate-400 mt-3 font-semibold tracking-wide">
-                                    {salesItem.month}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                        {/* Top Selling Products Bar Chart */}
+                        <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 flex flex-col hover:border-slate-800/80 transition-all duration-300">
+                          <h3 className="text-lg font-bold tracking-tight text-slate-100 mb-6 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+                            Top 5 Selling Products (Units)
+                          </h3>
+                          <div className="h-64 relative flex-1">
+                            {salesAnalytics?.topSellingProducts && salesAnalytics.topSellingProducts.length > 0 ? (
+                              <Bar data={barChartData} options={barChartOptions} />
+                            ) : (
+                              <div className="h-full flex items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
+                                <p className="text-slate-500 text-xs">Waiting for sales transactions...</p>
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <div className="h-64 flex items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
-                            <p className="text-slate-500 text-sm">Waiting for transaction inputs to plot charts...</p>
+                        </div>
+
+                        {/* Category Revenue Doughnut Chart */}
+                        <div className="bg-slate-900/40 backdrop-blur-md border border-slate-900 rounded-2xl p-6 flex flex-col hover:border-slate-800/80 transition-all duration-300">
+                          <h3 className="text-lg font-bold tracking-tight text-slate-100 mb-6 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                            Revenue by Category (USD)
+                          </h3>
+                          <div className="h-64 relative flex-1">
+                            {salesAnalytics?.salesByCategory && salesAnalytics.salesByCategory.length > 0 ? (
+                              <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
+                            ) : (
+                              <div className="h-full flex items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/20">
+                                <p className="text-slate-500 text-xs">Waiting for sales transactions...</p>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
+
                       </div>
 
                       {/* Stock alerts table */}
