@@ -6,6 +6,7 @@ import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 // Load environment variables
@@ -29,6 +30,7 @@ app.get('/', (req, res) => {
       products: '/api/products',
       dashboard: '/api/dashboard',
       ai: '/api/ai',
+      analytics: '/api/analytics',
     },
   });
 });
@@ -38,6 +40,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Fallback for Page/Route Not Found
 app.use(notFound);
