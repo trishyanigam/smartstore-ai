@@ -3,9 +3,10 @@ import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Insight from '../models/Insight.js';
 
-// Initialize OpenAI client (handles missing key gracefully)
-const openai = new OpenAI({
+// Initialize OpenAI client lazily to ensure environment variables are loaded
+const getOpenAIClient = () => new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy_key',
+  baseURL: 'https://openrouter.ai/api/v1',
 });
 
 // @desc    Get saved AI insights from database
@@ -138,8 +139,8 @@ export const generateStoreInsights = async (req, res, next) => {
     }
 
     // Call actual OpenAI if key is present
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const response = await getOpenAIClient().chat.completions.create({
+      model: 'openai/gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -339,8 +340,8 @@ Return a strict, valid JSON object matching exactly this structure, keeping reco
     - Categories recorded: ${JSON.stringify(categoryData)}
     - Category Revenues: ${JSON.stringify(revenueData)}`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const response = await getOpenAIClient().chat.completions.create({
+      model: 'openai/gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

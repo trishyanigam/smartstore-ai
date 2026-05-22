@@ -1,8 +1,9 @@
 import OpenAI from 'openai';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
+// Initialize OpenAI client lazily to ensure environment variables are loaded
+const getOpenAIClient = () => new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy_key',
+  baseURL: 'https://openrouter.ai/api/v1',
 });
 
 /**
@@ -73,8 +74,8 @@ You MUST return a JSON object with EXACTLY this structure:
   - Key Features: ${Array.isArray(features) ? features.join(', ') : features}`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const response = await getOpenAIClient().chat.completions.create({
+      model: 'openai/gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
